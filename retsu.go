@@ -3,8 +3,12 @@ package retsu
 import (
 	"bytes"
 	"encoding/gob"
+	"errors"
+	"fmt"
 	"io"
 	"os"
+	"reflect"
+	"strings"
 
 	"github.com/kelindar/column"
 	"github.com/klauspost/compress/s2"
@@ -24,6 +28,10 @@ var (
 	_s2ReaderPool = pool.New(func() *s2.Reader {
 		return s2.NewReader(nil)
 	})
+)
+
+var (
+	errContinue = errors.New("continue")
 )
 
 // SaveBasicSnapshotFile takes a collection and creates a basic snapshot (only data, no columns)
@@ -183,4 +191,161 @@ func LoadDeepSnapshot(r io.Reader) (*column.Collection, map[string]any, error) {
 
 	// convert deep snapshot back into collection
 	return ds.ToCollection()
+}
+
+// StructToColsMap converts a given struct to map of column name to value
+// Fields must be tagged with given structTag
+func StructToColsMap[T any](structTag string) (map[string]any, error) {
+	n := new(T)
+	cols := make(map[string]any)
+
+	err := ExecWhenSettable(n, structTag, func(tag string, v reflect.Value) error {
+		val, err := GetValue(v)
+		if err != nil {
+			fmt.Printf("Field [%s] has unsupported column type: %s\n", tag, v.Kind())
+			return errContinue
+		}
+
+		if _, exists := cols[tag]; exists {
+			return fmt.Errorf("duplicate tag: %s", tag)
+		}
+
+		cols[tag] = val
+		return nil
+	})
+
+	return cols, err
+}
+
+// StructToCols converts a given struct to columns
+// Fields must be tagged with given structTag
+func StructToCols[T any](col *column.Collection, structTag string) (map[string]any, error) {
+	cols, err := StructToColsMap[T](structTag)
+	if err != nil {
+		return nil, err
+	}
+	if err := col.CreateColumnsOf(cols); err != nil {
+		return nil, err
+	}
+
+	return cols, nil
+}
+
+// StructToColsDirect converts a given struct to columns
+// Fields must be tagged with given structTag
+func StructToColsDirect[T any](col *column.Collection, structTag string) error {
+	return ExecWhenSettable(new(T), structTag, func(tag string, v reflect.Value) error {
+		c, err := column.ForKind(v.Kind())
+		if err != nil {
+			fmt.Printf("Field [%s] has unsupported column type: %s\n", tag, v.Kind())
+			return errContinue
+		}
+
+		return col.CreateColumn(tag, c)
+	})
+}
+
+// InsertStruct converts a given struct to a row
+// Fields must be tagged with `col`
+func InsertStruct[T any](input *T, structTag string) func(r column.Row) error {
+	return func(r column.Row) error {
+		return ExecWhenSettable(input, structTag, func(tag string, v reflect.Value) error {
+			if err := SetValue(r, v, tag); err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+}
+
+// ExecWhenSettable executes a function on a reflect.Value when it's settable
+func ExecWhenSettable[T any](input *T, structTag string, f func(string, reflect.Value) error) error {
+	e := reflect.ValueOf(input).Elem()
+
+	for i := 0; i < e.NumField(); i++ {
+		field := e.Type().Field(i)
+		tag := field.Tag.Get(structTag)
+		if strings.TrimSpace(tag) == "" {
+			continue
+		}
+
+		if e.Field(i).CanSet() {
+			err := f(tag, e.Field(i))
+			if err != nil {
+				if errors.Is(err, errContinue) {
+					continue
+				}
+
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// GetValue attempts to get underlying of given reflect.Value
+func GetValue(val reflect.Value) (any, error) {
+	switch kind := val.Kind(); kind {
+	case reflect.Float32:
+		return float32(val.Float()), nil
+	case reflect.Float64:
+		return val.Float(), nil
+	case reflect.Int:
+		return int(val.Int()), nil
+	case reflect.Int16:
+		return int16(val.Int()), nil
+	case reflect.Int32:
+		return int32(val.Int()), nil
+	case reflect.Int64:
+		return val.Int(), nil
+	case reflect.Uint:
+		return uint(val.Uint()), nil
+	case reflect.Uint16:
+		return uint16(val.Uint()), nil
+	case reflect.Uint32:
+		return uint32(val.Uint()), nil
+	case reflect.Uint64:
+		return val.Uint(), nil
+	case reflect.Bool:
+		return val.Bool(), nil
+	case reflect.String:
+		return val.String(), nil
+	default:
+		return nil, fmt.Errorf("column: unsupported column kind (%v)", kind)
+	}
+}
+
+// SetValue creates a row for a specified reflect.Value
+func SetValue(r column.Row, val reflect.Value, colName string) error {
+	switch kind := val.Kind(); kind {
+	case reflect.Float32:
+		r.SetFloat32(colName, float32(val.Float()))
+	case reflect.Float64:
+		r.SetFloat64(colName, val.Float())
+	case reflect.Int:
+		r.SetInt(colName, int(val.Int()))
+	case reflect.Int16:
+		r.SetInt16(colName, int16(val.Int()))
+	case reflect.Int32:
+		r.SetInt32(colName, int32(val.Int()))
+	case reflect.Int64:
+		r.SetInt64(colName, val.Int())
+	case reflect.Uint:
+		r.SetUint(colName, uint(val.Uint()))
+	case reflect.Uint16:
+		r.SetUint16(colName, uint16(val.Uint()))
+	case reflect.Uint32:
+		r.SetUint32(colName, uint32(val.Uint()))
+	case reflect.Uint64:
+		r.SetUint64(colName, val.Uint())
+	case reflect.Bool:
+		r.SetBool(colName, val.Bool())
+	case reflect.String:
+		r.SetString(colName, val.String())
+	default:
+		return fmt.Errorf("column: unsupported column kind (%v)", kind)
+	}
+
+	return nil
 }

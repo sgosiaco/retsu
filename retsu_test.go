@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/kelindar/column"
 )
@@ -251,6 +252,73 @@ func TestRawSnapshot(t *testing.T) {
 	}
 	newCol.Restore(file)
 	file.Close()
+
+	newCount := 0
+	newCol.Query(func(txn *column.Txn) error {
+		newCount = txn.WithValue("index", func(v interface{}) bool {
+			return v.(int) > half
+		}).Count()
+		return nil
+	})
+
+	if newCount != curCount {
+		t.Errorf("Expected %d, instead found %d", curCount, newCount)
+	}
+}
+
+func TestStructToCols(t *testing.T) {
+	type testObj struct {
+		Index int    `json:"index"`
+		Str   string `json:"str"`
+		T     time.Time
+	}
+
+	// create new collection
+	col := column.NewCollection()
+	// add columns
+	csvCols, err := StructToCols[testObj](col, "json")
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+
+	max := 1_000_000
+	half := (max / 2)
+	expected := (max / 2) - 1
+
+	// iterate over data and insert in bulk
+	col.Query(func(txn *column.Txn) error {
+		// range over data
+		for i := 0; i < max; i++ {
+			t := testObj{
+				Index: i,
+				Str:   fmt.Sprint(i),
+			}
+
+			txn.Insert(InsertStruct(&t, "json"))
+		}
+		return nil // Commit
+	})
+
+	curCount := 0
+	col.Query(func(txn *column.Txn) error {
+		curCount = txn.WithValue("index", func(v interface{}) bool {
+			return v.(int) > half
+		}).Count()
+		return nil
+	})
+
+	if curCount != expected {
+		t.Errorf("Expected %d, instead found %d", expected, curCount)
+	}
+
+	if err := SaveDeepSnapshotFile(col, csvCols, deepFilename); err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+
+	newCol, _, err := LoadDeepSnapshotFile(deepFilename)
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
 
 	newCount := 0
 	newCol.Query(func(txn *column.Txn) error {
