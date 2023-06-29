@@ -2,10 +2,7 @@ module github.com/sgosiaco/retsu
 
 go 1.18
 
-require (
-	github.com/kelindar/column v0.3.0
-	github.com/klauspost/compress v1.15.13
-)
+require github.com/sgosiaco/column v0.0.0-20230629232744-3768588706a5
 
 require (
 	github.com/kelindar/bitmap v1.4.1 // indirect
@@ -13,6 +10,7 @@ require (
 	github.com/kelindar/iostream v1.3.0 // indirect
 	github.com/kelindar/simd v1.1.2 // indirect
 	github.com/kelindar/smutex v1.0.0 // indirect
+	github.com/klauspost/compress v1.15.13 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.1 // indirect
 	github.com/tidwall/btree v1.6.0 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect

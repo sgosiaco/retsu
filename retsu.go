@@ -10,8 +10,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/kelindar/column"
-	"github.com/klauspost/compress/s2"
+	"github.com/sgosiaco/column"
 	"github.com/sgosiaco/retsu/internal/pool"
 )
 
@@ -19,14 +18,6 @@ import (
 var (
 	_bufPool = pool.New(func() *bytes.Buffer {
 		return new(bytes.Buffer)
-	})
-
-	_s2WriterPool = pool.New(func() *s2.Writer {
-		return s2.NewWriter(nil)
-	})
-
-	_s2ReaderPool = pool.New(func() *s2.Reader {
-		return s2.NewReader(nil)
 	})
 )
 
@@ -49,20 +40,12 @@ func SaveBasicSnapshotFile(col *column.Collection, filepath string) error {
 // SaveBasicSnapshot takes a collection and creates a basic snapshot (only data, no columns)
 // Writes to given writer using s2 compression
 func SaveBasicSnapshot(col *column.Collection, w io.Writer) error {
-	// get s2 writer from pool
-	s2enc := _s2WriterPool.Get()
-	// reset after retrieving from pool
-	s2enc.Reset(w)
-	// put back into pool once done using
-	defer _s2WriterPool.Put(s2enc)
-
 	// write snapshot to s2
-	if err := col.Snapshot(s2enc); err != nil {
+	if err := col.Snapshot(w); err != nil {
 		return err
 	}
 
-	// close s2 to write to writer
-	return s2enc.Close()
+	return nil
 }
 
 // LoadBasicSnapshotFile takes a collection and loads a basic snapshot (only data, no columns)
@@ -80,15 +63,7 @@ func LoadBasicSnapshotFile(col *column.Collection, filepath string) error {
 // LoadBasicSnapshot takes a collection and loads a basic snapshot (only data, no columns)
 // Reads from given reader using s2 decompression
 func LoadBasicSnapshot(col *column.Collection, r io.Reader) error {
-	// get s2 reader from pool
-	s2dec := _s2ReaderPool.Get()
-	// reset after retrieving from pool
-	s2dec.Reset(r)
-	// put back into pool once done using
-	defer _s2ReaderPool.Put(s2dec)
-
-	// restore from s2
-	return col.Restore(s2dec)
+	return col.Restore(r)
 }
 
 // DeepSnapshot struct to hold csv column data and collection data
@@ -146,19 +121,8 @@ func SaveDeepSnapshot(col *column.Collection, csvCols map[string]any, w io.Write
 		Data:    buf.Bytes(),
 	}
 
-	// get s2 writer from pool
-	s2enc := _s2WriterPool.Get()
-	// reset after retrieving from pool
-	s2enc.Reset(w)
-	// put back into pool once done using
-	defer _s2WriterPool.Put(s2enc)
-
-	// gob encode deep snapshot into s2
-	enc := gob.NewEncoder(s2enc)
-	enc.Encode(ds)
-
-	// close s2 to write to writer
-	return s2enc.Close()
+	enc := gob.NewEncoder(w)
+	return enc.Encode(ds)
 }
 
 // LoadDeepSnapshotFile takes a collection and loads a deep snapshot (data + columns)
@@ -175,15 +139,7 @@ func LoadDeepSnapshotFile(filepath string) (*column.Collection, map[string]any, 
 // LoadDeepSnapshot takes a collection and loads a deep snapshot (data + columns)
 // Reads from given reader using gob decoding + s2 decompression
 func LoadDeepSnapshot(r io.Reader) (*column.Collection, map[string]any, error) {
-	// get s2 reader from pool
-	s2dec := _s2ReaderPool.Get()
-	// reset after retrieving from pool
-	s2dec.Reset(r)
-	// put back into pool once done using
-	defer _s2ReaderPool.Put(s2dec)
-
-	// gob decode deep snapshot from s2
-	dec := gob.NewDecoder(s2dec)
+	dec := gob.NewDecoder(r)
 	var ds DeepSnapshot
 	if err := dec.Decode(&ds); err != nil {
 		return nil, nil, err
