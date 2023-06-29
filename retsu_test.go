@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kelindar/column"
+	"github.com/sgosiaco/column"
 )
 
 const (
