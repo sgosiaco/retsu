@@ -18,8 +18,8 @@ github.com/klauspost/cpuid/v2 v2.2.1 h1:U33DW0aiEj633gHYw3LoDNfkDiYnE5Q8M/TKJn2f
 github.com/klauspost/cpuid/v2 v2.2.1/go.mod h1:RVVoqg1df56z8g3pUjL/3lE5UfnlrJX8tyFgg4nqhuY=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/sgosiaco/column v0.0.0-20230629232744-3768588706a5 h1:2qZTOj8VPqA9aXsgja916dHhHMKWSZgdUiSFjvTM6QU=
-github.com/sgosiaco/column v0.0.0-20230629232744-3768588706a5/go.mod h1:pxOddoV1E7XWzLus5wCiPrqFYBNR//b2EYJHQyF0Dw0=
+github.com/sgosiaco/column v0.0.0-20230630002418-597ae6c89ee2 h1:Fr/B3kNqjCc5Nncuqh5fn2crcdoNpAiRt4G04O2fk+Q=
+github.com/sgosiaco/column v0.0.0-20230630002418-597ae6c89ee2/go.mod h1:pxOddoV1E7XWzLus5wCiPrqFYBNR//b2EYJHQyF0Dw0=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.8.1 h1:w7B6lhMri9wdJUVmEZPGGhZzrYTPvgJArz7wNPgYKsk=

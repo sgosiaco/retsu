@@ -2,7 +2,7 @@ module github.com/sgosiaco/retsu
 
 go 1.18
 
-require github.com/sgosiaco/column v0.0.0-20230629232744-3768588706a5
+require github.com/sgosiaco/column v0.0.0-20230630002418-597ae6c89ee2
 
 require (
 	github.com/kelindar/bitmap v1.4.1 // indirect
